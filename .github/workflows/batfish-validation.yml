@@ -1,0 +1,73 @@
+name: Network Digital Twin Validation
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  batfish-validation:
+    name: Validate Network Changes
+    runs-on: ubuntu-latest
+
+    services:
+      batfish:
+        image: batfish/batfish@sha256:5515157739b7dca9a63b04e7a4a8f9c3d94ab0bdb8cd79ece57a5a5204307fbb
+        ports:
+          - 9996:9996
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: batfish/requirements.txt
+
+      - name: Install Pybatfish
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r batfish/requirements.txt
+
+      - name: Wait for Batfish API
+        run: |
+          for attempt in {1..30}; do
+            echo "Checking Batfish API: ${attempt}/30"
+
+            if curl --noproxy '*' \
+              --silent \
+              --show-error \
+              --fail \
+              --max-time 5 \
+              -H "X-Batfish-Apikey: 00000000000000000000000000000000" \
+              -H "X-Batfish-Version: 2025.07.07.2423" \
+              http://127.0.0.1:9996/v2/version; then
+              echo
+              echo "Batfish API is ready."
+              exit 0
+            fi
+
+            sleep 2
+          done
+
+          echo "Batfish API did not become ready."
+          docker ps -a
+          exit 1
+
+      - name: Validate base network
+        working-directory: batfish
+        run: python tests/validate_base.py
+
+      - name: Verify broken candidate is rejected
+        working-directory: batfish
+        run: python tests/validate_candidate.py
