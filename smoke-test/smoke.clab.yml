@@ -1,0 +1,14 @@
+name: smoke
+
+topology:
+  nodes:
+    n1:
+      kind: linux
+      image: alpine:latest
+
+    n2:
+      kind: linux
+      image: alpine:latest
+
+  links:
+    - endpoints: ["n1:eth1", "n2:eth1"]

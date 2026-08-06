@@ -1,0 +1,22 @@
+# Python
+batfish/.venv/
+__pycache__/
+*.pyc
+
+# Batfish runtime data
+batfish/service-data/
+batfish/reports/
+
+# Containerlab runtime
+clab-*/
+*.tar.gz
+
+# Editor dan OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.log
