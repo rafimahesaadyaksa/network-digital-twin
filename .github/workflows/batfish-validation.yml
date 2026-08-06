@@ -16,12 +16,7 @@ jobs:
   batfish-validation:
     name: Validate Network Changes
     runs-on: ubuntu-latest
-
-    services:
-      batfish:
-        image: batfish/batfish@sha256:5515157739b7dca9a63b04e7a4a8f9c3d94ab0bdb8cd79ece57a5a5204307fbb
-        ports:
-          - 9996:9996
+    timeout-minutes: 25
 
     steps:
       - name: Checkout repository
@@ -38,6 +33,19 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r batfish/requirements.txt
+
+      - name: Pull Batfish image
+        run: |
+          docker pull batfish/batfish@sha256:5515157739b7dca9a63b04e7a4a8f9c3d94ab0bdb8cd79ece57a5a5204307fbb
+
+      - name: Start Batfish
+        run: |
+          docker run -d \
+            --name batfish \
+            --network host \
+            batfish/batfish@sha256:5515157739b7dca9a63b04e7a4a8f9c3d94ab0bdb8cd79ece57a5a5204307fbb
+
+          docker ps --filter name=batfish
 
       - name: Wait for Batfish API
         run: |
@@ -57,11 +65,12 @@ jobs:
               exit 0
             fi
 
-            sleep 2
+            docker ps --filter name=batfish
+            sleep 3
           done
 
           echo "Batfish API did not become ready."
-          docker ps -a
+          docker logs batfish || true
           exit 1
 
       - name: Validate base network
@@ -71,3 +80,9 @@ jobs:
       - name: Verify broken candidate is rejected
         working-directory: batfish
         run: python tests/validate_candidate.py
+
+      - name: Show Batfish logs on failure
+        if: failure()
+        run: |
+          docker ps -a
+          docker logs batfish || true
